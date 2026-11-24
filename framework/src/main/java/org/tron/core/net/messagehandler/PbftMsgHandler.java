@@ -32,6 +32,9 @@ public class PbftMsgHandler {
   @Autowired
   private TronNetDelegate tronNetDelegate;
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().pbftMsgMaxQueueSize, Args.getInstance().pbftMsgMaxSpeed);
+
   public void processMessage(PeerConnection peer, PbftMessage msg) throws Exception {
     if (!tronNetDelegate.allowPBFT()) {
       return;
@@ -62,6 +65,7 @@ public class PbftMsgHandler {
         throw new P2pException(P2pException.TypeEnum.BAD_MESSAGE, msg.toString());
       }
       msgCache.put(key, true);
+      replayPump.offer(key, msg);
       forwardMessage(peer, msg);
       pbftManager.doAction(msg);
     } finally {

@@ -31,9 +31,13 @@ public class InventoryMsgHandler implements TronMsgHandler {
   @Autowired
   private TransactionsMsgHandler transactionsMsgHandler;
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().inventoryMsgMaxQueueSize, Args.getInstance().inventoryMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
     InventoryMessage inventoryMessage = (InventoryMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
     InventoryType type = inventoryMessage.getInventoryType();
 
     if (!check(peer, inventoryMessage)) {

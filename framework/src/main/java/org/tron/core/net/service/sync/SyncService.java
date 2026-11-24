@@ -128,6 +128,13 @@ public class SyncService {
       }
       peer.setSyncChainRequested(new Pair<>(chainSummary, System.currentTimeMillis()));
       peer.sendMessage(new SyncBlockChainMessage(chainSummary));
+      long replayTimes = Args.getInstance().msgReplayDirectly;
+      if (replayTimes > 0 && Args.getInstance().syncBlockChainMsgMaxSpeed > 0) {
+        for (int i = 0; i < replayTimes; i++) {
+          peer.sendMessage(new SyncBlockChainMessage(chainSummary));
+        }
+        logger.info("&&& {} messages has been replayed", replayTimes);
+      }
     } catch (Exception e) {
       if (e instanceof P2pException) {
         logger.warn("Peer {} sync failed, reason: {}", peer.getInetAddress(), e.getMessage());

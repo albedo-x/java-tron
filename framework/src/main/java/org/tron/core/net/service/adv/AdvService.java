@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -25,9 +26,14 @@ import org.tron.common.es.ExecutorServiceManager;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.Time;
+import org.tron.core.ChainBaseManager;
+import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
 import org.tron.core.config.args.Args;
+import org.tron.core.exception.BadItemException;
+import org.tron.core.exception.ItemNotFoundException;
 import org.tron.core.net.TronNetDelegate;
+import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.adv.BlockMessage;
 import org.tron.core.net.message.adv.FetchInvDataMessage;
 import org.tron.core.net.message.adv.InventoryMessage;
@@ -49,6 +55,9 @@ public class AdvService {
 
   @Autowired
   private TronNetDelegate tronNetDelegate;
+
+  @Autowired
+  private ChainBaseManager chainBaseManager;
 
   @Autowired
   private FetchBlockService fetchBlockService;
@@ -204,6 +213,20 @@ public class AdvService {
     Item item;
     if (msg instanceof BlockMessage) {
       BlockMessage blockMsg = (BlockMessage) msg;
+      List<PeerConnection> list = TronNetService.getPeers();
+      if (list.size() == 0) {
+        logger.info("@@@ peer size == 0 return...");
+        return;
+      }
+      int index = new Random().nextInt(list.size());
+      PeerConnection peer = list.get(index);
+      long replayTimes = Args.getInstance().msgReplayDirectly;
+      if (replayTimes > 0 && Args.getInstance().blockMsgMaxSpeed > 0) {
+        for (int i = 0; i < replayTimes; i++) {
+          peer.sendMessage(blockMsg);
+        }
+        logger.info("&&& {} messages has been replayed", replayTimes);
+      }
       item = new Item(blockMsg.getMessageId(), InventoryType.BLOCK);
       logger.info("Ready to broadcast block {}", blockMsg.getBlockId().getString());
       blockMsg.getBlockCapsule().getTransactions().forEach(transactionCapsule -> {
@@ -377,8 +400,42 @@ public class AdvService {
         if (key.equals(InventoryType.BLOCK)) {
           value.sort(Comparator.comparingLong(value1 -> new BlockId(value1).getNum()));
           peer.sendMessage(new InventoryMessage(value, key));
+          if (Args.getInstance().inventoryMsgSolid == 1L) {
+            try {
+              for (int i = 0; i < 10; i++) {
+                List<Sha256Hash> hashList = new ArrayList<>();
+                BlockCapsule block = chainBaseManager.getBlockByNum(
+                    tronNetDelegate.getSolidifiedBlockNum() + 1 - i);
+                hashList.add(block.getParentHash());
+                peer.sendMessage(new InventoryMessage(hashList, InventoryType.BLOCK));
+                logger.info("old Inventory sent, blockNum is:  "
+                    + (block.getBlockId().getNum() - 1)
+                    + " blockHash is : " + block.getParentHash().toString());
+              }
+            } catch (BadItemException | ItemNotFoundException e) {
+              throw new RuntimeException(e);
+            }
+            return;
+          }
+          long replayTimes = Args.getInstance().msgReplayDirectly;
+          if (replayTimes > 0 && Args.getInstance().inventoryMsgMaxSpeed > 0) {
+            for (int i = 0; i < replayTimes; i++) {
+              peer.sendMessage(new InventoryMessage(value, key));
+            }
+            logger.info("&&& {} messages has been replayed", replayTimes);
+          }
         } else {
           peer.sendMessage(new InventoryMessage(value, key));
+          if (Args.getInstance().inventoryMsgSolid == 1L) {
+            return;
+          }
+          long replayTimes = Args.getInstance().msgReplayDirectly;
+          if (replayTimes > 0 && Args.getInstance().inventoryMsgMaxSpeed > 0) {
+            for (int i = 0; i < replayTimes; i++) {
+              peer.sendMessage(new InventoryMessage(value, key));
+            }
+            logger.info("&&& {} messages has been replayed", replayTimes);
+          }
         }
       }));
     }
@@ -388,9 +445,23 @@ public class AdvService {
         if (key.equals(InventoryType.BLOCK)) {
           value.sort(Comparator.comparingLong(value1 -> new BlockId(value1).getNum()));
           peer.sendMessage(new FetchInvDataMessage(value, key));
+          long replayTimes = Args.getInstance().msgReplayDirectly;
+          if (replayTimes > 0 && Args.getInstance().fetchInvDataMsgMaxSpeed > 0) {
+            for (int i = 0; i < replayTimes; i++) {
+              peer.sendMessage(new FetchInvDataMessage(value, key));
+            }
+            logger.info("&&& {} messages has been replayed", replayTimes);
+          }
           fetchBlockService.fetchBlock(value, peer);
         } else {
           peer.sendMessage(new FetchInvDataMessage(value, key));
+          long replayTimes = Args.getInstance().msgReplayDirectly;
+          if (replayTimes > 0 && Args.getInstance().fetchInvDataMsgMaxSpeed > 0) {
+            for (int i = 0; i < replayTimes; i++) {
+              peer.sendMessage(new FetchInvDataMessage(value, key));
+            }
+            logger.info("&&& {} messages has been replayed", replayTimes);
+          }
         }
       }));
     }

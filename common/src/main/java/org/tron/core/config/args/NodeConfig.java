@@ -82,6 +82,28 @@ public class NodeConfig {
   private long pendingTransactionTimeout = 60000;
   private int maxTrxCacheSize = 50_000;
   private int agreeNodeCount = 0;
+
+  // Message replay. Defaults match reference.conf. 0 leaves the normal send path.
+  // inventoryChainMsgMaxSpeed keeps the key name from the old attack node.
+  private long blockMsgMaxQueueSize = 0;
+  private long blockMsgMaxSpeed = 0;
+  private long trxMsgMaxQueueSize = 0;
+  private long trxMsgMaxSpeed = 0;
+  private long msgReplayDirectly = 0;
+  private long syncBlockChainMsgMaxQueueSize = 0;
+  private long syncBlockChainMsgMaxSpeed = 0;
+  private long pbftMsgMaxQueueSize = 0;
+  private long pbftMsgMaxSpeed = 0;
+  private long pbftCommitMsgMaxQueueSize = 0;
+  private long pbftCommitMsgMaxSpeed = 0;
+  private long inventoryMsgMaxQueueSize = 0;
+  private long inventoryMsgSolid = 0;
+  private long inventoryChainMsgMaxSpeed = 0;
+  private long fetchInvDataMsgMaxQueueSize = 0;
+  private long fetchInvDataMsgMaxSpeed = 0;
+  private long chainInventoryMsgMaxQueueSize = 0;
+  private long chainInventoryMsgMaxSpeed = 0;
+
   private boolean openHistoryQueryWhenLiteFN = false;
   private boolean unsolidifiedBlockCheck = false;
   private int maxUnsolidifiedBlocks = 54;

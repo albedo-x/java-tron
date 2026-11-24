@@ -614,6 +614,25 @@ public class Args extends CommonParameter {
     PARAMETER.shieldedTransInPendingMaxCounts = nc.getShieldedTransInPendingMaxCounts();
     PARAMETER.agreeNodeCount = nc.getAgreeNodeCount();
 
+    PARAMETER.blockMsgMaxQueueSize = nc.getBlockMsgMaxQueueSize();
+    PARAMETER.blockMsgMaxSpeed = nc.getBlockMsgMaxSpeed();
+    PARAMETER.trxMsgMaxQueueSize = nc.getTrxMsgMaxQueueSize();
+    PARAMETER.trxMsgMaxSpeed = nc.getTrxMsgMaxSpeed();
+    PARAMETER.msgReplayDirectly = nc.getMsgReplayDirectly();
+    PARAMETER.syncBlockChainMsgMaxQueueSize = nc.getSyncBlockChainMsgMaxQueueSize();
+    PARAMETER.syncBlockChainMsgMaxSpeed = nc.getSyncBlockChainMsgMaxSpeed();
+    PARAMETER.pbftMsgMaxQueueSize = nc.getPbftMsgMaxQueueSize();
+    PARAMETER.pbftMsgMaxSpeed = nc.getPbftMsgMaxSpeed();
+    PARAMETER.pbftCommitMsgMaxQueueSize = nc.getPbftCommitMsgMaxQueueSize();
+    PARAMETER.pbftCommitMsgMaxSpeed = nc.getPbftCommitMsgMaxSpeed();
+    PARAMETER.inventoryMsgMaxQueueSize = nc.getInventoryMsgMaxQueueSize();
+    PARAMETER.inventoryMsgSolid = nc.getInventoryMsgSolid();
+    PARAMETER.inventoryMsgMaxSpeed = nc.getInventoryChainMsgMaxSpeed();
+    PARAMETER.fetchInvDataMsgMaxQueueSize = nc.getFetchInvDataMsgMaxQueueSize();
+    PARAMETER.fetchInvDataMsgMaxSpeed = nc.getFetchInvDataMsgMaxSpeed();
+    PARAMETER.chainInventoryMsgMaxQueueSize = nc.getChainInventoryMsgMaxQueueSize();
+    PARAMETER.chainInventoryMsgMaxSpeed = nc.getChainInventoryMsgMaxSpeed();
+
     PARAMETER.openHistoryQueryWhenLiteFN = nc.isOpenHistoryQueryWhenLiteFN();
     PARAMETER.nodeMetricsEnable = nc.isMetricsEnable();
     PARAMETER.openPrintLog = nc.isOpenPrintLog();

@@ -26,6 +26,7 @@ import org.tron.consensus.base.Param;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
+import org.tron.core.config.args.Args;
 import org.tron.core.db.PbftSignDataStore;
 import org.tron.core.exception.P2pException;
 import org.tron.core.net.message.TronMessage;
@@ -50,9 +51,13 @@ public class PbftDataSyncHandler implements TronMsgHandler, Closeable {
   @Autowired
   private ChainBaseManager chainBaseManager;
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().pbftCommitMsgMaxQueueSize, Args.getInstance().pbftCommitMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
     PbftCommitMessage pbftCommitMessage = (PbftCommitMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
     try {
       if (!chainBaseManager.getDynamicPropertiesStore().allowPBFT()) {
         return;

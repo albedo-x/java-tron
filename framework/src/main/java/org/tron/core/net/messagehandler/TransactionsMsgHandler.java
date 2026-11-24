@@ -81,6 +81,9 @@ public class TransactionsMsgHandler implements TronMsgHandler {
         + tronNetDelegate.getCachedTransactionSize() > Args.getInstance().getMaxTrxCacheSize();
   }
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().trxMsgMaxQueueSize, Args.getInstance().trxMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
     if (isClosed) {
@@ -88,6 +91,7 @@ public class TransactionsMsgHandler implements TronMsgHandler {
       return;
     }
     TransactionsMessage transactionsMessage = (TransactionsMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
     check(peer, transactionsMessage);
     for (Transaction trx : transactionsMessage.getTransactions().getTransactionsList()) {
       Item item = new Item(new TransactionMessage(trx).getMessageId(), InventoryType.TRX);

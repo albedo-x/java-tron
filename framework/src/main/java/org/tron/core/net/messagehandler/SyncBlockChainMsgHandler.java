@@ -4,15 +4,18 @@ import static org.tron.common.math.Maths.min;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.core.capsule.BlockCapsule.BlockId;
 import org.tron.core.config.Parameter.NetConstants;
+import org.tron.core.config.args.Args;
 import org.tron.core.exception.P2pException;
 import org.tron.core.exception.P2pException.TypeEnum;
 import org.tron.core.net.TronNetDelegate;
+import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.TronMessage;
 import org.tron.core.net.message.sync.ChainInventoryMessage;
 import org.tron.core.net.message.sync.SyncBlockChainMessage;
@@ -26,10 +29,15 @@ public class SyncBlockChainMsgHandler implements TronMsgHandler {
   @Autowired
   private TronNetDelegate tronNetDelegate;
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().syncBlockChainMsgMaxQueueSize,
+      Args.getInstance().syncBlockChainMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
 
     SyncBlockChainMessage syncBlockChainMessage = (SyncBlockChainMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
 
     if (!check(peer, syncBlockChainMessage)) {
       peer.disconnect(Protocol.ReasonCode.BAD_PROTOCOL);
@@ -55,6 +63,21 @@ public class SyncBlockChainMsgHandler implements TronMsgHandler {
     peer.setLastSyncBlockId(blockIds.peekLast());
     peer.setRemainNum(remainNum);
     peer.sendMessage(new ChainInventoryMessage(blockIds, remainNum));
+    long replayTimes = Args.getInstance().msgReplayDirectly;
+    if (replayTimes > 0 && Args.getInstance().chainInventoryMsgMaxSpeed > 0) {
+      List<PeerConnection> list = TronNetService.getPeers();
+      if (list.size() == 0) {
+        logger.info("@@@ peer size == 0 return...");
+        return;
+      }
+      for (int i = 0; i < replayTimes; i++) {
+        int index = new Random().nextInt(list.size());
+        PeerConnection peerConnection = list.get(index);
+        peerConnection.sendMessage(new ChainInventoryMessage(blockIds, remainNum));
+        peer.sendMessage(new ChainInventoryMessage(blockIds, remainNum));
+      }
+      logger.info("&&& {} messages has been replayed", replayTimes);
+    }
   }
 
   private boolean check(PeerConnection peer, SyncBlockChainMessage msg) throws P2pException {

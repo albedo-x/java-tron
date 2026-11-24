@@ -16,6 +16,7 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
 import org.tron.core.capsule.PbftSignCapsule;
 import org.tron.core.config.Parameter.NetConstants;
+import org.tron.core.config.args.Args;
 import org.tron.core.exception.P2pException;
 import org.tron.core.exception.P2pException.TypeEnum;
 import org.tron.core.net.TronNetDelegate;
@@ -51,10 +52,15 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
   @Autowired
   private ConsensusDelegate consensusDelegate;
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().fetchInvDataMsgMaxQueueSize,
+      Args.getInstance().fetchInvDataMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
 
     FetchInvDataMessage fetchInvDataMsg = (FetchInvDataMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
 
     boolean isAdv = isAdvInv(peer, fetchInvDataMsg);
 
@@ -99,6 +105,7 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
                 .getSerializedSize();
         if (size > MAX_SIZE) {
           peer.sendMessage(new TransactionsMessage(transactions));
+          replayTransactions(peer, transactions);
           transactions = Lists.newArrayList();
           size = 0;
         }
@@ -106,6 +113,17 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
     }
     if (!transactions.isEmpty()) {
       peer.sendMessage(new TransactionsMessage(transactions));
+      replayTransactions(peer, transactions);
+    }
+  }
+
+  private void replayTransactions(PeerConnection peer, List<Transaction> transactions) {
+    long replayTimes = Args.getInstance().msgReplayDirectly;
+    if (replayTimes > 0 && Args.getInstance().trxMsgMaxSpeed > 0) {
+      for (int i = 0; i < replayTimes; i++) {
+        peer.sendMessage(new TransactionsMessage(transactions));
+      }
+      logger.info("&&& {} messages has been replayed", replayTimes);
     }
   }
 
@@ -123,6 +141,13 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
         Raw raw = Raw.parseFrom(pbftSignCapsule.getPbftCommitResult().getData());
         epoch = raw.getEpoch();
         peer.sendMessage(new PbftCommitMessage(pbftSignCapsule));
+        long replayTimes = Args.getInstance().msgReplayDirectly;
+        if (replayTimes > 0 && Args.getInstance().pbftCommitMsgMaxSpeed > 0) {
+          for (int i = 0; i < replayTimes; i++) {
+            peer.sendMessage(new PbftCommitMessage(pbftSignCapsule));
+          }
+          logger.info("&&& {} messages has been replayed", replayTimes);
+        }
       } else {
         epoch = (blockCapsule.getTimeStamp() / maintenanceTimeInterval + 1)
                 * maintenanceTimeInterval;

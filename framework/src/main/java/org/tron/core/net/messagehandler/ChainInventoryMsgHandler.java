@@ -35,10 +35,15 @@ public class ChainInventoryMsgHandler implements TronMsgHandler {
 
   private final long syncFetchBatchNum = Args.getInstance().getSyncFetchBatchNum();
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().chainInventoryMsgMaxQueueSize,
+      Args.getInstance().chainInventoryMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
 
     ChainInventoryMessage chainInventoryMessage = (ChainInventoryMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
 
     check(peer, chainInventoryMessage);
 

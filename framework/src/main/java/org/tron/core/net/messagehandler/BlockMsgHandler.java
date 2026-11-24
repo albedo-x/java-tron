@@ -55,10 +55,14 @@ public class BlockMsgHandler implements TronMsgHandler {
 
   private boolean fastForward = Args.getInstance().isFastForward();
 
+  private static final ReplayPump replayPump = new ReplayPump(
+      Args.getInstance().blockMsgMaxQueueSize, Args.getInstance().blockMsgMaxSpeed);
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
 
     BlockMessage blockMessage = (BlockMessage) msg;
+    replayPump.offer(msg.hashCode(), msg);
     BlockId blockId = blockMessage.getBlockId();
 
     BlockCapsule blockCapsule = blockMessage.getBlockCapsule();
@@ -122,6 +126,7 @@ public class BlockMsgHandler implements TronMsgHandler {
       logger.error("Receive bad block {} from peer {}, with no request",
               msg.getBlockId(), peer.getInetSocketAddress());
       throw new P2pException(TypeEnum.BAD_MESSAGE, "no request");
+      // The attack node can stop throwing here when a scenario must stay connected.
     }
   }
 
